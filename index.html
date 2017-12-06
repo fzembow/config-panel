@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+  </head>
+  <body>
+    <script src="config_panel.js"></script>
+    <script>
+
+      const config = {
+        number: 20,
+        boolean: true,
+        text: 'hello',
+        color: '#abdefe',
+        hidden: 'will not be shown',
+        cssClass: true,
+        nested: {
+          value: 42
+        }
+      };
+
+      const options = {
+        alwaysExpanded: true,
+        localStoragePrefix: 'my-key-',
+
+        keys: {
+          number: {
+            reload: true
+          },
+          color: {
+            callback: (newValue, oldValue) => { console.log(newValue, oldValue); }
+          },
+          hidden: {
+            hidden: true
+          },
+          cssClass: {
+            type: 'cssClass'
+          },
+          nested: {
+            value: {
+              type: 'range',
+              min: 4,
+              max: 100,
+              step: 4
+            }
+          }
+        }
+      };
+
+      const panel = new ConfigPanel(config, options);
+    </script>
+  </body>
+</html>
