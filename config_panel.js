@@ -241,7 +241,7 @@ ConfigPanel.prototype.validateConfigAndOptions = function(){
 }
 
 
-ConfigPanel.prototype.validateKeyOptions = function(config, options, keyPrefix = ''){
+ConfigPanel.prototype.validateKeyOptions = function(config, options = {}, keyPrefix = ''){
   Object.keys(options).forEach(key => {
     const keyPath = keyPrefix + key;
     if (config[key] === undefined) {
