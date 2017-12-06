@@ -1,3 +1,7 @@
+const CSS_VARS = {
+  LINK_COLOR: 'blue'
+};
+
 const PANEL_CSS = `
   .cfgp-ConfigPanel{
     position: fixed;
@@ -64,15 +68,23 @@ const PANEL_CSS = `
     border: 1px solid #ddd;
   }
 
-  .cfgp-ConfigPanel-json{
-    font-family: monospace;
+  .cfgp-ConfigPanel-link{
+    color: ${CSS_VARS.LINK_COLOR};
+    cursor: pointer;
   }
 
-  .cfgp-ConfigPanel-json:focus{
+  .cfgp-ConfigPanel-json{
+    font-family: monospace;
+    display: none;
+  }
+
+  .cfgp-ConfigPanel-json.active{
+    display: block;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
+    top: 50%;
     height: 50%;
   }
 
@@ -101,7 +113,7 @@ const PANEL_HTML = `
     <div class='cfgp-ConfigPanel-inputs'>
     </div>
 
-    <span class='cfgp-ConfigPanel-label'>JSON</span>
+    <span class='cfgp-ConfigPanel-label cfgp-ConfigPanel-link cfgp-ConfigPanel-jsonlink'>SHOW JSON</span>
     <textarea class='cfgp-ConfigPanel-json'>
     </textarea>
   </div>
@@ -167,15 +179,31 @@ ConfigPanel = function(config, options = {}){
   this.selectPresetEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-selectPreset .cfgp-ConfigPanel-select');
   this.selectPresetEl.addEventListener('change', this.onChangePreset.bind(this));
 
+
   this.jsonOutputEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-json');
-  this.jsonOutputEl.addEventListener('focus', e => {
-    e.target.select();
+  this.jsonOutputEl.addEventListener('blur', e => {
+    this.jsonOutputEl.classList.remove('active');
+  });
+
+  this.showJsonEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-jsonlink');
+  this.showJsonEl.addEventListener('click', e => {
+    this.jsonOutputEl.classList.add('active');
+    this.jsonOutputEl.select();
+    e.preventDefault();
   });
   
   this.resetEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-reset');
   this.resetEl.addEventListener('click', e => {
     this.resetToCurrentConfig();
   });
+  
+  window.addEventListener('keydown', e => {
+    if (e.keyCode === 27) {
+      // Close JSON view on ESC
+      this.jsonOutputEl.classList.remove('active');
+    }
+  });
+
 
   this.refreshPresets();
 
