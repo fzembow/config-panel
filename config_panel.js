@@ -129,9 +129,9 @@ const VALID_GLOBAL_OPTIONS = {
 const VALID_KEY_OPTIONS = {
   callback: 'function',
   hidden: 'boolean',
-  cssClass: 'boolean',
+  applyCssClass: 'boolean',
   reload: 'boolean',
-  type: value => ['color', 'cssClass', 'number', 'range', 'text'].includes(value),
+  type: value => ['color', 'number', 'range', 'text'].includes(value),
   min: 'number',
   max: 'number',
   step: 'number'
@@ -368,12 +368,7 @@ ConfigPanel.prototype.createInput = function(config, key, options = {}){
   input.className = 'cfgp-ConfigPanel-input';
 
   // TODO: Allow explicit configuration of type.
-  let type;
-  if (options.type) {
-    type = options.type === 'cssClass' ? 'checkbox' : options.type;
-  } else {
-    type = this.detectInputType(config[key]);
-  }
+  const type = options.type ? options.type : this.detectInputType(config[key]);
   input.type = type;
 
   const value = config[key];
@@ -422,7 +417,7 @@ ConfigPanel.prototype.createInput = function(config, key, options = {}){
       options.callback(newValue, oldValue);
     }
 
-    if (options.type === 'cssClass') {
+    if (options.applyCssClass) {
       this.onChangeCssValue(key, newValue);
     }
     
@@ -430,7 +425,7 @@ ConfigPanel.prototype.createInput = function(config, key, options = {}){
   });
   container.appendChild(input);
 
-  if (options.type === 'cssClass') {
+  if (options.applyCssClass) {
     this.onChangeCssValue(key, value);
   }
 
