@@ -214,7 +214,11 @@ ConfigPanel = function(config, options = {}){
 
 
 ConfigPanel.prototype.getAvailablePresets = function() {
-  const presetLabels = Object.keys(this.presets);
+  const presets = this.presets;
+  if (!presets) {
+    return;
+  }
+  const presetLabels = Object.keys(presets);
   presetLabels.push(DEFAULT_PRESET_LABEL);
   presetLabels.sort();
   return presetLabels;
@@ -231,14 +235,16 @@ ConfigPanel.prototype.refreshPresets = function() {
     presets.push(NEW_PRESET_LABEL);
   }
 
-  presets.forEach(presetName => {
-    const optionEl = document.createElement('option');
-    optionEl.textContent = presetName;
-    if (this.currentPresetName === presetName) {
-      optionEl.selected = true;
-    }
-    this.selectPresetEl.appendChild(optionEl);
-  });
+  if (presets) {
+    presets.forEach(presetName => {
+      const optionEl = document.createElement('option');
+      optionEl.textContent = presetName;
+      if (this.currentPresetName === presetName) {
+        optionEl.selected = true;
+      }
+      this.selectPresetEl.appendChild(optionEl);
+    });
+  }
 
   // If the client config doesn't match what's in storage, allow resetting / saving
   // the client config.
@@ -517,8 +523,19 @@ ConfigPanel.prototype.loadLocalData = function(){
   }
 
   const parsedData = JSON.parse(data);
-  // TODO: Be more resilient to malformed config in the data
+
+  // Don't use deletion, instead use selective copying / creation
+
+  const diffs = this.getDifferingKeyPaths(parsedData.config, this.config);
+  diffs.forEach(keyPath => {
+    deleteValueAtKeyPath(parsedData.config, keyPath);
+  });
   return parsedData;
+}
+
+
+// Only copy over values that continue to exist.
+ConfigPanel.prototype.validateLocalData = function(){
 }
 
 
@@ -651,7 +668,7 @@ function getValuesAtAllKeyPaths(objects){
 function getAllKeyPaths(obj, prefixPath = ''){
   const keys = Object.keys(obj).reduce((keys, key) => {
     if (typeof obj[key] === 'object') {
-      return keys.concat(getAllKeyPaths(obj[key], key + '.'));
+      return keys.concat(getAllKeyPaths(obj[key], prefixPath + key + '.'));
     } else {
       keys.push(prefixPath + key);
       return keys;
@@ -673,4 +690,14 @@ function getValueAtKeyPath(obj, keyPath) {
     obj = obj[key];
   }
   return obj;
+}
+
+function deleteValueAtKeyPath(obj, keyPath) {
+  const keys = keyPath.split('.');
+  let key = keys.shift();
+  while (keys.length > 0) {
+    obj = obj[key];
+    key = keys.shift();
+  }
+  delete obj[key];
 }
