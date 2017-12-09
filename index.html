@@ -11,7 +11,14 @@
         boolean: true,
         text: 'hello',
         color: '#abdefe',
-        hidden: 'will not be shown',
+
+        nestedValuesAreShown: {
+          likeThisNumber: 42,
+          butThisWillNot: {
+            becauseOf: 'the `hidden` option'
+          },
+        },
+
         someCssClass: true,
         nested: {
           value: 42
@@ -19,24 +26,26 @@
       };
 
       const options = {
+
         alwaysExpanded: true,
         localStoragePrefix: 'my-key-',
+        hidden: ['nestedValuesAreShown.butThisWillNot'],
 
         keys: {
           number: {
             reload: true
           },
           color: {
-            callback: (newValue, oldValue) => { console.log(newValue, oldValue); }
-          },
-          hidden: {
-            hidden: true
+            onChange: (newValue, oldValue) => {
+              console.log(newValue, oldValue);
+            }
           },
           someCssClass: {
             applyCssClass: true
           },
-          nested: {
-            value: {
+
+          nestedValuesAreShown: {
+            likeThisNumber: {
               type: 'range',
               min: 4,
               max: 100,
@@ -47,8 +56,6 @@
       };
 
       const panel = new ConfigPanel(config, options);
-
-      console.log(getAllKeyPaths(config))
 
     </script>
   </body>

@@ -122,13 +122,13 @@ const PANEL_HTML = `
 
 const VALID_GLOBAL_OPTIONS = {
   alwaysExpanded: 'boolean',
-  localStoragePrefix: 'string'
+  localStoragePrefix: 'string',
+  hidden: 'array',
 };
 
 
 const VALID_KEY_OPTIONS = {
-  callback: 'function',
-  hidden: 'boolean',
+  onChange: 'function',
   applyCssClass: 'boolean',
   reload: 'boolean',
   type: value => ['color', 'number', 'range', 'text'].includes(value),
@@ -140,12 +140,12 @@ const VALID_KEY_OPTIONS = {
 
 const DEFAULT_PRESET_LABEL = '[default]';
 const NEW_PRESET_LABEL = 'new...';
+const DEFAULT_LOCALSTORAGE_PREFIX = 'config-panel-';
 
 
 ConfigPanel = function(config, options = {}){
   this.options = options;
-  // TODO: Make this based on options, the URL or something like that.
-  this.localStorageKey = options.localStorageKey ? options.localStorageKey : 'config-panel-';
+  this.localStorageKey = options.localStorageKey ? options.localStorageKey : DEFAULT_LOCALSTORAGE_PREFIX;
 
   if (!config) {
     throw new Error('You must instantiate ConfigPanel with a config object');
@@ -158,8 +158,10 @@ ConfigPanel = function(config, options = {}){
 
   const localData = this.loadLocalData();
   Object.assign(this.config, localData.config);
+
   this.presets = localData.presets;
   if (localData.currentPresetName) {
+    // TODO: Load preset from url hash instead? Makes linking simpler to do.
     this.currentPresetName = localData.currentPresetName;
   }
 
@@ -264,7 +266,10 @@ ConfigPanel.prototype.validateConfigAndOptions = function(){
     }
 
     const expectedKeyType = VALID_GLOBAL_OPTIONS[key];
-    const actualKeyType = typeof this.options[key];
+    let actualKeyType = typeof this.options[key];
+    if (actualKeyType === 'object' && Array.isArray(this.options[key])) {
+      actualKeyType = 'array';
+    }
     if (actualKeyType !== expectedKeyType) {
       throw new Error(`Option ${key} is a ${actualKeyType}. Expected a ${expectedKeyType}`);
     }
@@ -315,7 +320,6 @@ ConfigPanel.prototype.validateKeyOptions = function(config, options = {}, keyPre
           }
         }
       });
-
     }
   });
 }
@@ -324,26 +328,48 @@ ConfigPanel.prototype.validateKeyOptions = function(config, options = {}, keyPre
 ConfigPanel.prototype.refreshConfigDOM = function(){
   const inputsEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-inputs');
   inputsEl.innerHTML = '';
-  this.injectConfigDOM(inputsEl, this.config, this.options.keys);
+  this.injectConfigDOM(inputsEl, this.config, this.options.keys, this.options.hidden);
 }
 
 
-ConfigPanel.prototype.injectConfigDOM = function(parentEl, config, options = {}){
-  Object.keys(config).forEach(key => {
+ConfigPanel.prototype.injectConfigDOM = function(
+    parentEl,
+    config,
+    keyOptions = {},
+    hiddenKeyPaths = []){
 
-    if (options[key] && options[key].hidden === true) {
+  Object.keys(config).forEach(key => {
+    if (hiddenKeyPaths.includes(key)) {
       return;
     }
 
     if (typeof config[key] == 'object') {
+      // Don't show objects with no keys.
+      const childKeys = Object.keys(config[key]);
+      if (childKeys.length === 0) {
+        return;
+      }
+
+      // Recurse into objects
+      const relevantHiddenKeyPaths = hiddenKeyPaths
+          .filter(path => path.startsWith(key))
+          .map(path => path.replace(new RegExp(`${key}.`, 'g'), ''));
+
+      // Don't show objects with all hidden keys
+      if (childKeys.filter(key => !relevantHiddenKeyPaths.includes(key)).length === 0) {
+        return;
+      }
+
       const container = this.createNestedConfigContainer(key);
       parentEl.appendChild(container);
+
       this.injectConfigDOM(
           container.querySelector('.cfgp-ConfigPanel-inputs'),
           config[key],
-          options[key]);
+          keyOptions[key],
+          relevantHiddenKeyPaths);
     } else {
-      parentEl.appendChild(this.createInput(config, key, options[key]));
+      parentEl.appendChild(this.createInput(config, key, keyOptions[key]));
     }
   });
 }
@@ -367,7 +393,6 @@ ConfigPanel.prototype.createInput = function(config, key, options = {}){
   const input = document.createElement('input');
   input.className = 'cfgp-ConfigPanel-input';
 
-  // TODO: Allow explicit configuration of type.
   const type = options.type ? options.type : this.detectInputType(config[key]);
   input.type = type;
 
@@ -408,13 +433,11 @@ ConfigPanel.prototype.createInput = function(config, key, options = {}){
     container.classList.add('changed');
 
     this.saveConfigToStorage();
-
     this.checkIfReloadRequired();
-
     this.refreshPresets();
 
-    if (options.callback) {
-      options.callback(newValue, oldValue);
+    if (options.onChange) {
+      options.onChange(newValue, oldValue);
     }
 
     if (options.applyCssClass) {
@@ -519,13 +542,26 @@ ConfigPanel.prototype.loadLocalData = function(){
 
   const parsedData = JSON.parse(data);
 
-  // Don't use deletion, instead use selective copying / creation
+  // Find the keys that are still relevant, if the shape of the config
+  // has changed since what was saved in localStorage.
+  const valuesAtKeyPaths = getValuesAtAllKeyPaths([parsedData.config, this.config]);
+  const keyPathsToCopy = valuesAtKeyPaths
+      .filter(path => {
+        return path.values[0] !== undefined && path.values[1] !== undefined;
+      })
 
-  const diffs = this.getDifferingKeyPaths(parsedData.config, this.config);
-  diffs.forEach(keyPath => {
-    deleteValueAtKeyPath(parsedData.config, keyPath);
-  });
-  return parsedData;
+  const hiddenKeyPaths = this.options.hidden || [];
+  const loadedConfig = {}
+  keyPathsToCopy
+      .filter(path => !hiddenKeyPaths.includes(path.keyPath))
+      .forEach(path => {
+        setValueAtKeyPath(this.config, path.keyPath, path.values[0]);
+      });
+
+  return {
+    config: loadedConfig,
+    presets: parsedData.presets || {}
+  }
 }
 
 
@@ -672,6 +708,7 @@ function getAllKeyPaths(obj, prefixPath = ''){
   return keys;
 }
 
+
 function getValueAtKeyPath(obj, keyPath) {
   const keys = keyPath.split('.');
   let key = keys.shift();
@@ -686,6 +723,19 @@ function getValueAtKeyPath(obj, keyPath) {
   }
   return obj;
 }
+
+
+function setValueAtKeyPath(obj, keyPath, value) {
+  // TODO: Ensure that setting a non-existent keyPath fails.
+  const keys = keyPath.split('.');
+  let key = keys.shift();
+  while (keys.length > 0) {
+    obj = obj[key];
+    key = keys.shift();
+  }
+  obj[key] = value;
+}
+
 
 function deleteValueAtKeyPath(obj, keyPath) {
   const keys = keyPath.split('.');
