@@ -22,7 +22,8 @@
         someCssClass: true,
         nested: {
           value: 42
-        }
+        },
+        select: 'value'
       };
 
       const options = {
@@ -51,6 +52,17 @@
               max: 100,
               step: 4
             }
+          },
+
+          select: {
+            type: 'enum',
+            options: [
+              'pick',
+              'value',
+              'from',
+              'some',
+              'choices',
+            ]
           }
         }
       };

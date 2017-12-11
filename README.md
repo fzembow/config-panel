@@ -58,7 +58,7 @@ It's also possible to apply options for particular keys in your config, in the `
 
 * **`reload`** *(default: false)*. If `true`, will prompt the user to reload the browser when changed. This is useful if you have a configuration that is used in the initiation of your page. Values are persisted across reloads in localStorage.
 * **`onChange`** *(default: undefined)*. A function, if defined, will be called whenever the key is updated in the panel. The function will be called with `(newValue, oldValue)`.
-* **`type`** *(allowed: 'color', 'number', 'range', 'text')*. When set, will force the key's input type. Note that you can also pass `min`, `max`, and `step`, which will apply when the `type` is set to `'range'`.
+* **`type`** *(allowed: 'color', 'enum', 'number', 'range', 'text')*. When set, will force the key's input type. Note that you can also pass `min`, `max`, and `step`, which will apply when the `type` is set to `'range'`. If the `enum` type is set, you must also provide a set of valid choices in an `options` array.
 * **`applyCssClass`** *(default: false) (only applies to boolean config keys)*. If `true`, will apply a CSS class to the document's `<body>` element when the config is itself true for this key. Useful for selectively enabling or disabling styles in prototypes.
 
 Key options can also be nested, just like the config object itself.

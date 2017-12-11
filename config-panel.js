@@ -133,10 +133,11 @@
     onChange: 'function',
     applyCssClass: 'boolean',
     reload: 'boolean',
-    type: value => ['color', 'number', 'range', 'text'].includes(value),
+    type: value => ['color', 'enum', 'number', 'range', 'text'].includes(value),
     min: 'number',
     max: 'number',
-    step: 'number'
+    step: 'number',
+    options: 'array'
   };
 
 
@@ -305,20 +306,39 @@
 
         Object.keys(keyOptions).forEach(keyOption => {
           if (!VALID_KEY_OPTIONS[keyOption]) {
-            throw new Error(`${keyOption} is not a valid option for key ${keyPath}`);
+            throw new Error(`${keyOption} is not a supported option for options.keys.${keyPath}`);
           }
 
           const expectedKeyOptionType = VALID_KEY_OPTIONS[keyOption];
-          const actualKeyOptionType = typeof keyOptions[keyOption];
+          const actualKeyValue = keyOptions[keyOption];
+          let actualKeyOptionType = typeof actualKeyValue;
+          if (actualKeyOptionType === 'object') {
+            if (Array.isArray(actualKeyValue)) {
+              actualKeyOptionType = 'array';
+            }
+          }
+          
           if (typeof expectedKeyOptionType !== 'function' &&  actualKeyOptionType !== expectedKeyOptionType) {
             throw new Error(`Option ${keyOption} for key ${keyPath} is a ${actualKeyOptionType}. Expected a ${expectedKeyOptionType}`);
           } else if (typeof expectedKeyOptionType === 'function' && !expectedKeyOptionType(keyOptions[keyOption])) {
-            throw new Error(`Option ${keyOption} for key ${keyPath} is not valid.`);
+            throw new Error(`'${actualKeyValue}' is not a valid ${keyOption} (at options.keys.${keyPath}). Expected: ${expectedKeyOptionType}`);
           }
 
-          if (keyOption === 'type' && keyOptions[keyOption] === 'range') {
+          if (keyOption === 'type' && actualKeyValue === 'range') {
             if (keyOptions['min'] === undefined || keyOptions['max'] === undefined) {
               throw new Error(`Option type: 'range' for key ${keyPath} required both a min and a max defined.`);
+            }
+          }
+
+          if (keyOption === 'type' && actualKeyValue === 'enum') {
+            const enumOptions = keyOptions['options'];
+            if (!enumOptions || !enumOptions.length) {
+              throw new Error(`You must define at least one option for 'enum' type keys (as an array at options.keys.${keyPath}.options)`);
+              
+            }
+
+            if (!enumOptions.includes(config[key])) {
+              throw new Error(`The value for ${keyPath} in your config, ${config[key]}, doesn't match any valid option specified at options.keys.${keyPath}.options (${enumOptions.join(',')})`);
             }
           }
         });
@@ -392,11 +412,22 @@
     label.className = 'cfgp-ConfigPanel-label';
     container.appendChild(label);
 
-    const input = document.createElement('input');
-    input.className = 'cfgp-ConfigPanel-input';
-
     const type = options.type ? options.type : this.detectInputType(config[key]);
-    input.type = type;
+
+    let input;
+    if (type !== 'enum') {
+      input = document.createElement('input');
+      input.type = type;
+    } else {
+      input = document.createElement('select');
+      options.options.forEach(value => {
+        const optionEl = document.createElement('option');
+        optionEl.value = optionEl.textContent = value;
+        input.appendChild(optionEl);
+      });
+    }
+
+    input.className = 'cfgp-ConfigPanel-input';
 
     const value = config[key];
     if (type === 'checkbox') {
