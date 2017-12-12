@@ -446,7 +446,7 @@
 
 
     const eventName = input.type === 'range' ? 'input' : 'change';
-    input.addEventListener(eventName, (e) => {
+    input.addEventListener(eventName, e => {
       const oldValue = config[key];
       let newValue;
       if (input.type === 'number') {
@@ -459,7 +459,11 @@
 
       config[key] = newValue;
 
-      container.classList.add('changed');
+      if (newValue !== this.loadedConfig[key]) {
+        container.classList.add('changed');
+      } else {
+        container.classList.remove('changed');
+      }
 
       this.saveConfigToStorage();
       this.checkIfReloadRequired();
