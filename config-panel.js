@@ -536,16 +536,19 @@
 
     // Prevent events from bubbling into the host application.
     input.addEventListener('keydown', e => {
-      const delta = e.shiftKey ? 0.1 : 1.0;
-      if (e.key === 'ArrowUp') {
-        input.value = parseFloat((parseFloat(input.value) + delta).toFixed(1));
-        input.dispatchEvent(new Event('change'));
-        e.preventDefault();
-      } else if (e.key === 'ArrowDown') {
-        input.value = parseFloat((parseFloat(input.value) - delta).toFixed(1));
-        input.dispatchEvent(new Event('change'));
-        e.preventDefault();
+      if (input.type === 'number') {
+        const delta = e.shiftKey ? 0.1 : 1.0;
+        if (e.key === 'ArrowUp') {
+          input.value = parseFloat((parseFloat(input.value) + delta).toFixed(1));
+          input.dispatchEvent(new Event('change'));
+          e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+          input.value = parseFloat((parseFloat(input.value) - delta).toFixed(1));
+          input.dispatchEvent(new Event('change'));
+          e.preventDefault();
+        }
       }
+
       e.stopPropagation();
     });
     input.addEventListener('keypress', e => e.stopPropagation());
