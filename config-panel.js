@@ -162,6 +162,7 @@
   const VALID_INPUT_TYPES = [
     'color',
     'enum',
+    'integer',
     'number',
     'range',
     'text'
@@ -370,21 +371,28 @@
             throw new Error(`'${actualKeyValue}' is not a valid ${keyOption} (at options.keys.${keyPath}). Expected: ${expectedKeyOptionType}`);
           }
 
-          if (keyOption === 'type' && actualKeyValue === 'range') {
-            if (keyOptions['min'] === undefined || keyOptions['max'] === undefined) {
-              throw new Error(`Option type: 'range' for key ${keyPath} required both a min and a max defined.`);
-            }
-          }
-
-          if (keyOption === 'type' && actualKeyValue === 'enum') {
-            const enumOptions = keyOptions['options'];
-            if (!enumOptions || !enumOptions.length) {
-              throw new Error(`You must define at least one option for 'enum' type keys (as an array at options.keys.${keyPath}.options)`);
-              
+          // Custom type-specific validations
+          if (keyOption === 'type') {
+            if (actualKeyValue === 'range') {
+              if (keyOptions['min'] === undefined || keyOptions['max'] === undefined) {
+                throw new Error(`Option type: 'range' for key ${keyPath} required both a min and a max defined.`);
+              }
             }
 
-            if (!enumOptions.includes(config[key])) {
-              throw new Error(`The value for ${keyPath} in your config, ${config[key]}, doesn't match any valid option specified at options.keys.${keyPath}.options (${enumOptions.join(',')})`);
+            if (actualKeyValue === 'enum') {
+              const enumOptions = keyOptions['options'];
+              if (!enumOptions || !enumOptions.length) {
+                throw new Error(`You must define at least one option for 'enum' type keys (as an array at options.keys.${keyPath}.options)`);
+                
+              }
+
+              if (!enumOptions.includes(config[key])) {
+                throw new Error(`The value for ${keyPath} in your config, ${config[key]}, doesn't match any valid option specified at options.keys.${keyPath}.options (${enumOptions.join(',')})`);
+              }
+            }
+
+            if (actualKeyValue === 'integer' && !Number.isInteger(config[key])) {
+              throw new Error(`Key ${keyPath} must be an integer but is ${config[key]}`);
             }
           }
         });
@@ -466,7 +474,13 @@
     let input;
     if (type !== 'enum') {
       input = document.createElement('input');
-      input.type = type;
+      if (type === 'integer') {
+        input.type = 'number';
+        input.step = 1;
+        input.pattern = '\\d*';
+      } else {
+        input.type = type;
+      }
     } else {
       input = document.createElement('select');
       options.options.forEach(value => {
@@ -499,7 +513,9 @@
     input.addEventListener(eventName, e => {
       const oldValue = config[key];
       let newValue;
-      if (input.type === 'number') {
+      if (type === 'integer') {
+        input.value = newValue = parseInt(input.value);
+      } else if (input.type === 'number') {
         newValue = parseFloat(input.value);
       } else if (input.type === 'checkbox') {
         newValue = input.checked === true;
@@ -536,14 +552,16 @@
 
     // Prevent events from bubbling into the host application.
     input.addEventListener('keydown', e => {
-      if (input.type === 'number') {
-        const delta = e.shiftKey ? 0.1 : 1.0;
+      if (input.type === 'number' || type === 'integer') {
+        const delta = e.shiftKey && type !== 'integer' ? 0.1 : 1.0;
         if (e.key === 'ArrowUp') {
           input.value = parseFloat((parseFloat(input.value) + delta).toFixed(1));
+          input.dispatchEvent(new Event('input'));
           input.dispatchEvent(new Event('change'));
           e.preventDefault();
         } else if (e.key === 'ArrowDown') {
           input.value = parseFloat((parseFloat(input.value) - delta).toFixed(1));
+          input.dispatchEvent(new Event('input'));
           input.dispatchEvent(new Event('change'));
           e.preventDefault();
         }
