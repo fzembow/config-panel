@@ -1,11 +1,12 @@
 (function(window) {
 
   const CSS_VARS = {
+    GREEN_COLOR: '#62bf7f',
     LINK_COLOR: 'blue'
   };
 
   const PANEL_CSS = `
-    .cfgp-ConfigPanel{
+    .cfgp-ConfigPanel {
       position: fixed;
       top: 0;
       left: 0;
@@ -22,34 +23,61 @@
     }
 
     .cfgp-ConfigPanel:hover,
-    .cfgp-ConfigPanel.is-expanded{
+    .cfgp-ConfigPanel.is-expanded {
       margin-left: 0px;
       transition: margin-left 0.25s ease-in-out;
       box-shadow: 2px 0 2px rgba(0,0,0,0.25);
     }
 
-    .cfgp-ConfigPanel > div {
-      padding: 10px;
+    .cfgp-ConfigPanel-top {
+      box-shadow: 0px 2px 2px rgba(0,0,0,0.1);
+      padding: 10px 10px 0 10px;
+      z-index: 1;
+    }
+
+    .cfgp-ConfigPanel-actions{
+      display: flex;
+      height: 20px;
+      align-items: center;
+    }
+
+    .cfgp-ConfigPanel-actions > span:not(:last-child) {
+      margin-right: 8px;
     }
 
     .cfgp-ConfigPanel-reloadRequired,
     .cfgp-ConfigPanel-reset{
-      background-color: #dfe8ef;
-      text-transform: uppercase;
       display: none;
-      color: blue;
-      text-decoration: underline;
+      text-transform: uppercase;
+      color: ${CSS_VARS.LINK_COLOR};
       cursor: pointer;
     }
 
+    .cfgp-ConfigPanel-reloadRequired a {
+      text-decoration: none;
+    }
+
+    .cfgp-ConfigPanel-reloadRequired a:visited {
+      color: ${CSS_VARS.LINK_COLOR};
+    }
+
     .cfgp-ConfigPanel > .cfgp-ConfigPanel-content{
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: auto;
+      padding: 10px;
     }
 
     .cfgp-ConfigPanel-label{
       display: block;
       margin-top: 8px;
       margin-bottom: 4px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: pre;
+    }
+
+    .cfgp-ConfigPanel-inputContainer{
+      margin-bottom: 16px;
     }
 
     .cfgp-ConfigPanel-inputContainer.changed
@@ -68,6 +96,12 @@
       width: 100%;
       box-sizing: border-box;
       border: 1px solid #ddd;
+    }
+
+    .cfgp-ConfigPanel-input:focus,
+    .cfgp-ConfigPanel-select:focus{
+      border: 1px solid ${CSS_VARS.GREEN_COLOR};
+      outline: 0;
     }
 
     .cfgp-ConfigPanel-link{
@@ -97,25 +131,21 @@
   `;
 
   const PANEL_HTML = `
-    <div class='cfgp-ConfigPanel-selectPreset'>
+    <div class='cfgp-ConfigPanel-top'>
       <select class='cfgp-ConfigPanel-select'>
         <option></option>
       </select>
-    </div>
-
-    <div class='cfgp-ConfigPanel-reset'>
-      Reset
-    </div>
-
-    <div class='cfgp-ConfigPanel-reloadRequired'>
-      <a href=''>Reload required</a>
+      <div class='cfgp-ConfigPanel-actions'>
+        <span class='cfgp-ConfigPanel-reset'>Reset</span>
+        <span class='cfgp-ConfigPanel-reloadRequired'><a href=''>Reload</a></span>
+      </div>
     </div>
 
     <div class='cfgp-ConfigPanel-content'>
       <div class='cfgp-ConfigPanel-inputs'>
       </div>
 
-      <span class='cfgp-ConfigPanel-label cfgp-ConfigPanel-link cfgp-ConfigPanel-jsonlink'>SHOW JSON</span>
+      <label class='cfgp-ConfigPanel-label cfgp-ConfigPanel-link cfgp-ConfigPanel-jsonlink'>SHOW JSON</label>
       <textarea class='cfgp-ConfigPanel-json'>
       </textarea>
     </div>
@@ -129,11 +159,27 @@
   };
 
 
+  const VALID_INPUT_TYPES = [
+    'color',
+    'enum',
+    'number',
+    'range',
+    'text'
+  ];
+
+
+  // Which input types trigger updates based on `input` rather than `change` events?
+  const ONINPUT_INPUT_TYPES = [
+    'range',
+    'text'
+  ];
+
+
   const VALID_KEY_OPTIONS = {
     onChange: 'function',
     applyCssClass: 'boolean',
     reload: 'boolean',
-    type: value => ['color', 'enum', 'number', 'range', 'text'].includes(value),
+    type: value => VALID_INPUT_TYPES.includes(value),
     min: 'number',
     max: 'number',
     step: 'number',
@@ -181,7 +227,7 @@
       this.configPanelEl.classList.add('is-expanded');
     }
 
-    this.selectPresetEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-selectPreset .cfgp-ConfigPanel-select');
+    this.selectPresetEl = this.configPanelEl.querySelector('.cfgp-ConfigPanel-top .cfgp-ConfigPanel-select');
     this.selectPresetEl.addEventListener('change', this.onChangePreset.bind(this));
 
 
@@ -405,11 +451,14 @@
 
 
   ConfigPanel.prototype.createInput = function(config, key, options = {}){
+    const inputGuid = guid();
+
     const container = document.createElement('div');
     container.className = 'cfgp-ConfigPanel-inputContainer';
-    const label = document.createElement('span');
-    label.textContent = key;
+    const label = document.createElement('label');
+    label.textContent = label.title = key;
     label.className = 'cfgp-ConfigPanel-label';
+    label.htmlFor = inputGuid;
     container.appendChild(label);
 
     const type = options.type ? options.type : this.detectInputType(config[key]);
@@ -428,6 +477,7 @@
     }
 
     input.className = 'cfgp-ConfigPanel-input';
+    input.id = inputGuid;
 
     const value = config[key];
     if (type === 'checkbox') {
@@ -445,7 +495,7 @@
     }
 
 
-    const eventName = input.type === 'range' ? 'input' : 'change';
+    const eventName = ONINPUT_INPUT_TYPES.includes(input.type) ? 'input' : 'change';
     input.addEventListener(eventName, e => {
       const oldValue = config[key];
       let newValue;
@@ -478,6 +528,10 @@
       }
       
       e.stopPropagation();
+    });
+
+    input.addEventListener('focus', e => {
+      e.target.select();
     });
 
     // Prevent events from bubbling into the host application.
@@ -796,6 +850,17 @@
       key = keys.shift();
     }
     delete obj[key];
+  }
+
+
+  function guid() {
+    function s4() {
+      return Math.floor((1 + Math.random()) * 0x10000)
+        .toString(16)
+        .substring(1);
+    }
+    return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+      s4() + '-' + s4() + s4() + s4();
   }
 
 }(window, document));
